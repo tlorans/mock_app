@@ -50,7 +50,7 @@ an actual investor might be able to achieve in practice.
 
 st.write(r"""
 The table reports average excess returns and alphas for portfolios sorted on the signal.
-At the end of each month, we sort stocks into five portfolios based on their signal.
+At the end of each month, we sort coins into five portfolios based on their signal.
 Panel A reports average value-weighted quintile portfolio (L, 2, 3, 4, H) returns in excess of the risk-free rate, 
 the long-short extreme quintile portfolio (H-L) return and alphas with respect to the Liu et al. (2021) three-factor model.
 Panel B reports the factor loadings for the quintile portfolios and long-short extreme quintile portfolio in the Liu et al. (2021) three-factor model.
@@ -417,7 +417,7 @@ In each month, coins are first sorted into quintiles based on size breakpoints.
 Then, within each size quintile, coins are further sorted based on the candidate signal.
 Finally, they are grouped into twenty-five portfolios based on the intersection of the two sorts.
 Panel A presents the average returns to the 25 portfolios, as well as strategies that go 
-long stocks with high signal values and short stocks with low signal values within each size quintile.
+long coins with high signal values and short coins with low signal values within each size quintile.
 Panel B documents the average coin size for each portfolio.
          """)
 # Conditional Sort on Size and Signal

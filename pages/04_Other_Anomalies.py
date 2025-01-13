@@ -70,10 +70,10 @@ st.write(r"""
 st.write(r"""
          Panel C plots t-statistics on the average returns to strategies 
          constructed by conditional double sorts.
-         In each month, we sort stocks into quintiles based on one 
+         In each month, we sort coins into quintiles based on one 
          of the anomaly signals at a time. Then, within each 
-         quintile, we sort stocks into quintiles based on the test signal.
-         Stocks are finally grouped into five test-signal portfolios by combining stocks 
+         quintile, we sort coins into quintiles based on the test signal.
+         coins are finally grouped into five test-signal portfolios by combining coins 
          within each anomaly sorting portfolio.
          The panel plots the t-statistics on the average returns of these conditional 
          double-sorted trading strategies of the test signal conditioneed on each of the anomalies.
