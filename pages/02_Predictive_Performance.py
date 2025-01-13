@@ -6,6 +6,12 @@ import statsmodels.api as sm
 # Page title
 st.title("Predictive Performance")
 
+st.write(r"""
+This stage checks whether the signal reliably predicts cross-sectional differences
+in average returns. 
+         """)
+
+
 # Simulated Data
 np.random.seed(42)
 num_coins = 500
@@ -28,6 +34,27 @@ weighting_scheme = st.radio(
 
 
 st.header("Basic Sort")
+
+st.write(r"""
+This first table reports time-series regression results employing the value-weighted returns 
+or the equal-weighted returns to portfolios constructed from a quintile sort on the candidate predictor (signal).
+Univeriate sorts like these are the main technique in the anomaly literature to test whether a 
+signal predicts returns in the cross-section of assets. 
+         
+A conservative choice would be to choose the value-weighting scheme, as a anomalies are usually strongest
+amont micro-cap coins and thus geneerally look stronger when implemented using equal-weighted portfolio returns (Fama and French, 2008).
+The default choice of value-weighting provides results that are closer to what 
+an actual investor might be able to achieve in practice.
+         """)
+
+
+st.write(r"""
+The table reports average excess returns and alphas for portfolios sorted on the signal.
+At the end of each month, we sort stocks into five portfolios based on their signal.
+Panel A reports average value-weighted quintile portfolio (L, 2, 3, 4, H) returns in excess of the risk-free rate, 
+the long-short extreme quintile portfolio (H-L) return and alphas with respect to the Liu et al. (2021) three-factor model.
+Panel B reports the factor loadings for the quintile portfolios and long-short extreme quintile portfolio in the Liu et al. (2021) three-factor model.
+         """)
 # Assign weights based on the chosen scheme
 if weighting_scheme == "Market Cap Weighted":
     data["weight"] = data["market_cap"]
@@ -187,6 +214,56 @@ st.markdown("""
 """)
 
 st.header("Robustnees to Sorting Methodology & Trading Costs")
+
+st.write(r"""
+The table reports results for various alternative construction methodologies.
+It varies the number of portfolios (five or ten) and the weighting of 
+individual coins within each portfolio (market capitalization-weighted or equal-weighted).
+Panel B considers the impact of accounting for transaction costs. The trading cost 
+calculation follows Detzel et al. (2022). The net-of-costs return on anomaly $g$ in month $y$ is:
+         """)
+st.latex(r"""
+         \begin{equation}
+         f_t^{net} = f_t^{gross} - TC_{Long,t} - TC_{Short,t}
+            \end{equation}
+            """)
+
+st.write(r"""
+         where:
+         """)
+
+st.latex(r"""
+            \begin{equation}  
+         TC_{j,t} = \sum_{i \in I_{j,t}} |w_{i,t} - \tilde{w}_{i,t-1}| \times c_{i,t}
+            \end{equation}
+            """)
+
+st.write(r"""
+         for j $\in {Long, Short}$ and $I_{j,t}$ indexes the coin in portfolio
+         $j$ at time $t$. $c_{i,t}$ is the one-way trading cost of coin $i$ 
+         at time $t$, measured as the high-frequency combination effective half-spreads from Chen and Velikov (2022);
+         $w_{i,t}$ is the weight of coin $i$ in its portfolio at time $t$ after rebalancing 
+         and $\tilde{w}_{i,t-1} = \frac{w_{i,t-1}(1 + r_{i,t})}{\sum_{k \in I_{j,t}} w_{k,t-1}(1 + r_{k,t})}$ is the
+         weight of the coin in the portfolio before rebalancing.
+
+         Panel B also report the Novy-Marx and Velikov (2016) generalized alphas that 
+         account for trading costs. It reports these generalized alphas relative to the Liu et al. (2021) model.
+         The alphas are estimated as:
+         """)
+
+st.latex(r"""
+            \begin{equation}
+         w^{-1}_{y, MVE_{\{X,y\}}} MVE_{\{X,y\}} = \alpha + \beta \cdot MVE_{\{X\}} + \epsilon
+            \end{equation}
+            """)
+
+st.write(r"""
+         where $MVE_{\{X\}}$ denotes the ex-post mean-variance efficient portfolio 
+         of the assets $X$, where $X$ are the factors in the model and $w_{y, MVE_{\{X,y\}}}$ denotes the weights on 
+         asset $y$ (the candidate factor) in $MVE_{\{X,y\}}$. Following Novy-Marx and Velikov (2016), $\alpha$ 
+         is defined to equal 0 when $w_{y, MVE_{\{X,y\}}} = 0$.
+            """)
+
 
 # Trading cost assumption (0.1% per trade for simplicity)
 trading_cost = 0.001
