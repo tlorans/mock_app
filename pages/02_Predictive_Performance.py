@@ -399,3 +399,103 @@ st.markdown("""
 3. Portfolio sorting and weighting schemes are dynamically adjusted for analysis.
 4. Net alpha is computed as gross alpha minus trading cost adjustment.
 """)
+
+st.header("Conditional Sort on Size and Candidate Signal")
+
+st.write(r"""
+The table explicitly accounts for the role of coin size in the strength
+         of the candidate anomaly's performance. It does so 
+         by constructing strategies based on the candidate 
+         cross-sectional returns prediction within size quintiles. 
+         The table reports average portfolio returns, average number of coins 
+         and average coin size, for twenty five portfolios constructed from a 
+         conditional double sort on size and the candidate signal. 
+         It also reports the average returns and alphas for long/short trading 
+         strategies based on the signal within each size quintile. 
+
+In each month, coins are first sorted into quintiles based on size breakpoints.
+Then, within each size quintile, coins are further sorted based on the candidate signal.
+Finally, they are grouped into twenty-five portfolios based on the intersection of the two sorts.
+Panel A presents the average returns to the 25 portfolios, as well as strategies that go 
+long stocks with high signal values and short stocks with low signal values within each size quintile.
+Panel B documents the average coin size for each portfolio.
+         """)
+# Conditional Sort on Size and Signal
+data["size_quintile"] = data.groupby("date")["market_cap"].transform(
+    lambda x: pd.qcut(x, q=5, labels=["1", "2", "3", "4", "5"], duplicates="drop")
+)
+data["signal_quintile"] = data.groupby(["date", "size_quintile"])["signal"].transform(
+    lambda x: pd.qcut(x, q=5, labels=["L", "2", "3", "4", "H"], duplicates="drop")
+)
+
+# Group by size and signal quintiles
+portfolio_returns = (
+    data.groupby(["date", "size_quintile", "signal_quintile"])["return"]
+    .mean()
+    .unstack(level=["size_quintile", "signal_quintile"])
+)
+
+# Calculate average returns and t-statistics
+average_returns = portfolio_returns.mean()
+t_stats = average_returns / (portfolio_returns.std() / np.sqrt(num_periods))
+
+def run_regression(portfolio, factors):
+    # Align indices between portfolio returns and factors
+    portfolio = portfolio.dropna()  # Drop missing values
+    factors = factors.loc[portfolio.index]  # Align factors with portfolio index
+    
+    X = sm.add_constant(factors[["CMKT", "CSMB", "CMOM"]])
+    y = portfolio
+    reg = sm.OLS(y, X).fit()
+    return reg.params["const"], reg.tvalues["const"]
+
+# Merge portfolio returns with factors
+portfolio_returns = portfolio_returns.stack(["size_quintile", "signal_quintile"]).reset_index()
+portfolio_returns = portfolio_returns.rename(columns={0: "return"})
+
+# Merge with factors on 'date'
+portfolio_returns = pd.merge(portfolio_returns, factors.reset_index(), on="date")
+
+# Re-index portfolio returns
+portfolio_returns = portfolio_returns.set_index(["date", "size_quintile", "signal_quintile"])
+
+# Run regressions for all portfolios
+alphas = {}
+t_alphas = {}
+for size in ["1", "2", "3", "4", "5"]:
+    for signal in ["L", "2", "3", "4", "H"]:
+        portfolio = portfolio_returns.loc[
+            (slice(None), size, signal), "return"
+        ]  # Select specific portfolio returns
+        portfolio_factors = portfolio_returns.loc[
+            (slice(None), size, signal), ["CMKT", "CSMB", "CMOM"]
+        ]  # Select factors
+        alpha, t_alpha = run_regression(portfolio, portfolio_factors)
+        alphas[(size, signal)] = alpha
+        t_alphas[(size, signal)] = t_alpha
+
+# Create Panel A DataFrame
+panel_a_data = []
+for size in ["1", "2", "3", "4", "5"]:
+    row = {"Size Quintile": size}
+    for signal in ["L", "2", "3", "4", "H"]:
+        key = (size, signal)
+        row[f"{signal} Return"] = average_returns.get(key, np.nan)
+        row[f"t({signal})"] = t_stats.get(key, np.nan)
+        row[f"{signal} Alpha"] = alphas.get(key, np.nan)
+        row[f"t(Alpha {signal})"] = t_alphas.get(key, np.nan)
+    panel_a_data.append(row)
+
+panel_a = pd.DataFrame(panel_a_data)
+
+# Display Panel A
+st.subheader("Panel A: Portfolio Average Returns and Time-Series Regression Results")
+st.table(panel_a)
+
+# Notes
+st.markdown("""
+**Notes:**
+1. Average returns are based on monthly portfolio data, with portfolios sorted by size and signal quintiles.
+2. Alphas are estimated using the Liu et al. (2021) three-factor model.
+3. T-statistics are shown in brackets.
+""")
