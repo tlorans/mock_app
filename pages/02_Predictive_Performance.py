@@ -1,23 +1,15 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import statsmodels.api as sm
 
+# Page title
 st.title("Predictive Performance")
 
-# Retrieve signal from session state
-if "signal_type" in st.session_state:
-    signal_type = st.session_state["signal_type"]
-    st.write(f"Analyzing predictive performance based on the selected signal: **{signal_type}**")
-else:
-    st.error("No signal selected! Please go back to Step 1.")
-    st.stop()
-
-# Simulated Data Generation (for demonstration)
+# Simulated Data
 np.random.seed(42)
 num_coins = 500
-num_periods = 60  # Simulating monthly data for 5 years
+num_periods = 60  # Monthly data for 5 years
 data = pd.DataFrame({
     "coin_id": np.repeat([f"coin_{i}" for i in range(1, num_coins + 1)], num_periods),
     "date": pd.date_range("2015-01-01", periods=num_periods, freq="M").tolist() * num_coins,
@@ -26,94 +18,168 @@ data = pd.DataFrame({
     "market_cap": np.random.randint(10, 1000, num_coins * num_periods)
 })
 
-# Portfolio construction
-st.subheader("Portfolio Construction")
-num_portfolios = st.selectbox("Number of Portfolios (Quintile or Decile Sorts)", [5, 10], index=0)
-breakpoint_type = st.radio("Portfolio Breakpoints", ["Market Cap", "Equal"], index=0)
-weighting_scheme = st.radio("Portfolio Weighting", ["Value-Weighted", "Equal-Weighted"], index=0)
+# User choice for weighting scheme
+st.subheader("Portfolio Weighting Scheme")
+weighting_scheme = st.radio(
+    "Select Weighting Scheme",
+    options=["Market Cap Weighted", "Equal Weighted"],
+    index=0
+)
 
-# Portfolio sorting logic
-if breakpoint_type == "Market Cap":
-    data["portfolio"] = data.groupby("date")["market_cap"].transform(
-        lambda x: pd.qcut(x, q=num_portfolios, labels=False, duplicates="drop")
-    )
-else:
-    data["portfolio"] = data.groupby("date")["signal"].transform(
-        lambda x: pd.qcut(x, q=num_portfolios, labels=False, duplicates="drop")
-    )
-
-# Portfolio returns calculation
-st.subheader("Portfolio Returns")
-if weighting_scheme == "Value-Weighted":
+# Assign weights based on the chosen scheme
+if weighting_scheme == "Market Cap Weighted":
     data["weight"] = data["market_cap"]
 else:
     data["weight"] = 1
 
+# Portfolio construction
+num_portfolios = 5  # Quintile sort
+data["portfolio"] = data.groupby("date")["signal"].transform(
+    lambda x: pd.qcut(x, q=num_portfolios, labels=["L", "2", "3", "4", "H"], duplicates="drop")
+)
+
+# Portfolio returns
 portfolio_returns = (
     data.groupby(["date", "portfolio"])
     .apply(lambda x: np.average(x["return"], weights=x["weight"]))
     .unstack()
-    .add_prefix("Portfolio_")
 )
 
-st.write("The following table shows portfolio returns:")
-st.dataframe(portfolio_returns.head())
-# Regression with Liu et al. (2021) factor models
-st.subheader("Regression Analysis")
-factor_models = [
-    "Market-Size-Momentum (Liu et al., 2021)",
-    "Market-Size-Reversal",
-    "Market-Size-Momentum-Value"
-]
-selected_model = st.selectbox("Select Factor Model", factor_models)
+# Calculate Long-Short Portfolio (H-L)
+portfolio_returns["H-L"] = portfolio_returns["H"] - portfolio_returns["L"]
 
-# Simulated factors for demonstration
+# Factor Models (simulated for demonstration)
 factors = pd.DataFrame({
     "CMKT": np.random.randn(num_periods),  # Market factor
     "CSMB": np.random.randn(num_periods),  # Size factor
     "CMOM": np.random.randn(num_periods),  # Momentum factor
-    "CREV": np.random.randn(num_periods),  # Reversal factor
-    "CHML": np.random.randn(num_periods),  # Value factor
     "date": pd.date_range("2015-01-01", periods=num_periods, freq="M")
 }).set_index("date")
 
-
-# Add factors to portfolio returns
+# Merge factors with portfolio returns
 portfolio_returns = portfolio_returns.join(factors, how="inner")
 
-# Regression setup
-def run_regression(portfolio, factors, model):
-    if model == "Market-Size-Momentum (Liu et al., 2021)":
-        X = factors[["CMKT", "CSMB", "CMOM"]]
-    elif model == "Market-Size-Reversal":
-        X = factors[["CMKT", "CSMB", "CREV"]]
-    elif model == "Market-Size-Momentum-Value":
-        X = factors[["CMKT", "CSMB", "CMOM", "CHML"]]
-    X = sm.add_constant(X)
+# Regression function
+def run_regression(portfolio, factors):
+    X = sm.add_constant(factors[["CMKT", "CSMB", "CMOM"]])
     y = portfolio
-    regression = sm.OLS(y, X).fit()
-    return regression
+    reg = sm.OLS(y, X).fit()
+    return reg.params, reg.tvalues
 
-# Run regression for each portfolio
-alphas = []
-for portfolio in portfolio_returns.columns[:-len(factors.columns)]:
-    reg = run_regression(portfolio_returns[portfolio], factors, selected_model)
-    alphas.append(reg.params["const"])
+# Run regressions for all portfolios
+results = {}
+for col in portfolio_returns.columns[:5]:  # Exclude factors and H-L for now
+    params, tvals = run_regression(portfolio_returns[col], portfolio_returns[["CMKT", "CSMB", "CMOM"]])
+    results[col] = {"params": params, "tvals": tvals}
 
+# Run regression for Long-Short portfolio (H-L)
+params, tvals = run_regression(portfolio_returns["H-L"], portfolio_returns[["CMKT", "CSMB", "CMOM"]])
+results["H-L"] = {"params": params, "tvals": tvals}
 
-# Display alphas
-st.write("Portfolio Alphas:")
-alpha_df = pd.DataFrame({"Portfolio": portfolio_returns.columns[:-len(factors.columns)], "Alpha": alphas})
-st.dataframe(alpha_df)
+# Panel A: Excess Returns and Alphas
+st.subheader("Panel A: Excess Returns and Alphas")
+panel_a_data = {
+    "Metric": ["Excess Return", "t(Excess Return)", "Alpha (CMKT)", "t(Alpha)"],
+    "L": [
+        portfolio_returns["L"].mean(),
+        portfolio_returns["L"].mean() / portfolio_returns["L"].std(),
+        results["L"]["params"]["const"],
+        results["L"]["tvals"]["const"],
+    ],
+    "2": [
+        portfolio_returns["2"].mean(),
+        portfolio_returns["2"].mean() / portfolio_returns["2"].std(),
+        results["2"]["params"]["const"],
+        results["2"]["tvals"]["const"],
+    ],
+    "3": [
+        portfolio_returns["3"].mean(),
+        portfolio_returns["3"].mean() / portfolio_returns["3"].std(),
+        results["3"]["params"]["const"],
+        results["3"]["tvals"]["const"],
+    ],
+    "4": [
+        portfolio_returns["4"].mean(),
+        portfolio_returns["4"].mean() / portfolio_returns["4"].std(),
+        results["4"]["params"]["const"],
+        results["4"]["tvals"]["const"],
+    ],
+    "H": [
+        portfolio_returns["H"].mean(),
+        portfolio_returns["H"].mean() / portfolio_returns["H"].std(),
+        results["H"]["params"]["const"],
+        results["H"]["tvals"]["const"],
+    ],
+    "H-L": [
+        portfolio_returns["H-L"].mean(),
+        portfolio_returns["H-L"].mean() / portfolio_returns["H-L"].std(),
+        results["H-L"]["params"]["const"],
+        results["H-L"]["tvals"]["const"],
+    ],
+}
+panel_a = pd.DataFrame(panel_a_data)
+st.table(panel_a)
 
-# Plot alphas
-st.subheader("Alpha Visualization")
-fig, ax = plt.subplots()
-alpha_df.set_index("Portfolio")["Alpha"].plot(kind="bar", ax=ax)
-ax.set_title("Portfolio Alphas")
-ax.set_ylabel("Alpha")
-st.pyplot(fig)
+# Panel B: Factor Loadings
+st.subheader("Panel B: Factor Loadings")
+panel_b_data = {
+    "Metric": ["βCMKT", "t(βCMKT)", "βCSMB", "t(βCSMB)", "βCMOM", "t(βCMOM)"],
+    "L": [
+        results["L"]["params"]["CMKT"],
+        results["L"]["tvals"]["CMKT"],
+        results["L"]["params"]["CSMB"],
+        results["L"]["tvals"]["CSMB"],
+        results["L"]["params"]["CMOM"],
+        results["L"]["tvals"]["CMOM"],
+    ],
+    "2": [
+        results["2"]["params"]["CMKT"],
+        results["2"]["tvals"]["CMKT"],
+        results["2"]["params"]["CSMB"],
+        results["2"]["tvals"]["CSMB"],
+        results["2"]["params"]["CMOM"],
+        results["2"]["tvals"]["CMOM"],
+    ],
+    "3": [
+        results["3"]["params"]["CMKT"],
+        results["3"]["tvals"]["CMKT"],
+        results["3"]["params"]["CSMB"],
+        results["3"]["tvals"]["CSMB"],
+        results["3"]["params"]["CMOM"],
+        results["3"]["tvals"]["CMOM"],
+    ],
+    "4": [
+        results["4"]["params"]["CMKT"],
+        results["4"]["tvals"]["CMKT"],
+        results["4"]["params"]["CSMB"],
+        results["4"]["tvals"]["CSMB"],
+        results["4"]["params"]["CMOM"],
+        results["4"]["tvals"]["CMOM"],
+    ],
+    "H": [
+        results["H"]["params"]["CMKT"],
+        results["H"]["tvals"]["CMKT"],
+        results["H"]["params"]["CSMB"],
+        results["H"]["tvals"]["CSMB"],
+        results["H"]["params"]["CMOM"],
+        results["H"]["tvals"]["CMOM"],
+    ],
+    "H-L": [
+        results["H-L"]["params"]["CMKT"],
+        results["H-L"]["tvals"]["CMKT"],
+        results["H-L"]["params"]["CSMB"],
+        results["H-L"]["tvals"]["CSMB"],
+        results["H-L"]["params"]["CMOM"],
+        results["H-L"]["tvals"]["CMOM"],
+    ],
+}
+panel_b = pd.DataFrame(panel_b_data)
+st.table(panel_b)
 
-# Add navigation
-if st.button("Next Step"):
-    st.success("Proceeding to the next step...")
+# Notes
+st.markdown("""
+**Notes:**
+1. Excess returns and alphas are based on monthly portfolio data.
+2. Factor models include CMKT (Market), CSMB (Size), and CMOM (Momentum).
+3. T-statistics are shown in brackets.
+""")
