@@ -451,17 +451,17 @@ for size in ["Small", "2", "3", "4", "Large"]:
         long_short_returns[size] = (
             conditional_portfolio_returns[high_portfolio] - conditional_portfolio_returns[low_portfolio]
         ).mean()
-
 # Panel A: Average Portfolio Returns and Long/Short Strategy
-panel_a_conditional = pd.DataFrame(
-    conditional_portfolio_returns.mean(axis=0), columns=["Average Return"]
-).reset_index()
-panel_a_conditional.rename(columns={"index": "Portfolio"}, inplace=True)
+panel_a_conditional = pd.DataFrame({
+    "Portfolio": conditional_portfolio_returns.columns,
+    "Average Return": conditional_portfolio_returns.mean(axis=0).values
+})
 
 # Add Long-Short Strategy to Panel A
 panel_a_conditional["Long-Short Strategy"] = panel_a_conditional["Portfolio"].apply(
     lambda x: long_short_returns.get(x.split("-")[0], np.nan) if x.endswith("High") else np.nan
 )
+
 
 # Panel B: Average Coin Size
 panel_b_conditional = (
