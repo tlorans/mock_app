@@ -26,6 +26,8 @@ weighting_scheme = st.radio(
     index=0
 )
 
+
+st.header("Basic Sort")
 # Assign weights based on the chosen scheme
 if weighting_scheme == "Market Cap Weighted":
     data["weight"] = data["market_cap"]
@@ -182,4 +184,141 @@ st.markdown("""
 1. Excess returns and alphas are based on monthly portfolio data.
 2. Factor models include CMKT (Market), CSMB (Size), and CMOM (Momentum).
 3. T-statistics are shown in brackets.
+""")
+
+st.header("Robustnees to Sorting Methodology & Trading Costs")
+
+# Trading cost assumption (0.1% per trade for simplicity)
+trading_cost = 0.001
+
+# Add alternative sorting methods to analyze robustness
+sorting_methods = [
+    {"Portfolios": "Quintile", "Weights": "Market Cap Weighted"},
+    {"Portfolios": "Quintile", "Weights": "Equal Weighted"},
+    {"Portfolios": "Decile", "Weights": "Market Cap Weighted"},
+]
+# Function to calculate returns, alphas, and net alphas
+def analyze_portfolio(method, data, factors, trading_cost):
+    # Determine number of portfolios
+    num_portfolios = 5 if method["Portfolios"] == "Quintile" else 10
+
+    # Portfolio sorting
+    data["portfolio"] = data.groupby("date")["signal"].transform(
+        lambda x: pd.qcut(x, q=num_portfolios, labels=range(1, num_portfolios + 1), duplicates="drop")
+    )
+
+    # Weighting scheme
+    if method["Weights"] == "Market Cap Weighted":
+        data["weight"] = data["market_cap"]
+    else:
+        data["weight"] = 1
+
+    # Calculate portfolio returns
+    portfolio_returns = (
+        data.groupby(["date", "portfolio"])
+        .apply(lambda x: np.average(x["return"], weights=x["weight"]))
+        .unstack()
+    )
+    portfolio_returns["H-L"] = portfolio_returns.iloc[:, -1] - portfolio_returns.iloc[:, 0]
+
+    # Merge factors with portfolio returns
+    portfolio_returns = portfolio_returns.join(factors, how="inner")
+
+    # Regression to compute alphas
+    def run_regression(portfolio, factors):
+        X = sm.add_constant(factors[["CMKT", "CSMB", "CMOM"]])
+        y = portfolio
+        reg = sm.OLS(y, X).fit()
+        return reg.params, reg.tvalues
+
+    # Compute alphas and t-stats
+    alphas = {}
+    for col in portfolio_returns.columns[:num_portfolios]:
+        params, tvals = run_regression(portfolio_returns[col], portfolio_returns[["CMKT", "CSMB", "CMOM"]])
+        alphas[col] = {"alpha": params["const"], "tval": tvals["const"]}
+
+    # Compute trading costs
+    turnover = data.groupby(["date", "portfolio"])["weight"].apply(lambda x: x.diff().abs().sum()).unstack().mean()
+    net_alphas = {k: v["alpha"] - (turnover[k] * trading_cost) for k, v in alphas.items()}
+
+    return portfolio_returns.mean(), alphas, net_alphas
+# Analyze each sorting method
+results = []
+for method in sorting_methods:
+    # Determine number of portfolios
+    num_portfolios = 5 if method["Portfolios"] == "Quintile" else 10
+
+    # Portfolio sorting
+    data["portfolio"] = data.groupby("date")["signal"].transform(
+        lambda x: pd.qcut(x, q=num_portfolios, labels=range(1, num_portfolios + 1), duplicates="drop")
+    )
+
+    # Weighting scheme
+    if method["Weights"] == "Market Cap Weighted":
+        data["weight"] = data["market_cap"]
+    else:
+        data["weight"] = 1
+
+    # Calculate portfolio returns
+    portfolio_returns = (
+        data.groupby(["date", "portfolio"])
+        .apply(lambda x: np.average(x["return"], weights=x["weight"]))
+        .unstack()
+    )
+    portfolio_returns["H-L"] = portfolio_returns.iloc[:, -1] - portfolio_returns.iloc[:, 0]
+
+    # Merge factors with portfolio returns
+    portfolio_returns = portfolio_returns.join(factors, how="inner")
+
+    # Regression to compute alphas
+    def run_regression(portfolio, factors):
+        X = sm.add_constant(factors[["CMKT", "CSMB", "CMOM"]])
+        y = portfolio
+        reg = sm.OLS(y, X).fit()
+        return reg.params, reg.tvalues
+
+    # Compute alphas and t-stats for each portfolio, including "H-L"
+    alphas = {}
+    for col in portfolio_returns.columns[:-len(factors.columns)]:  # Only portfolio columns
+        params, tvals = run_regression(portfolio_returns[col], portfolio_returns[["CMKT", "CSMB", "CMOM"]])
+        alphas[col] = {"alpha": params["const"], "tval": tvals["const"]}
+
+    # Compute trading costs
+    turnover = (
+        data.groupby(["date", "portfolio"])["weight"]
+        .apply(lambda x: x.diff().abs().sum())
+        .unstack()
+        .mean()
+    )
+    net_alphas = {k: v["alpha"] - (turnover.get(k, 0) * trading_cost) for k, v in alphas.items()}
+
+    # Store results for the "H-L" portfolio
+    results.append({
+        "Portfolios": method["Portfolios"],
+        "Weights": method["Weights"],
+        "Gross Return (H-L)": portfolio_returns["H-L"].mean(),
+        "Alpha (H-L)": alphas.get("H-L", {}).get("alpha", np.nan),
+        "t(Alpha)": alphas.get("H-L", {}).get("tval", np.nan),
+        "Net Alpha (H-L)": net_alphas.get("H-L", np.nan)
+    })
+
+# Panel A: Gross Returns and Alphas
+st.subheader("Panel A: Gross Returns and Alphas")
+panel_a = pd.DataFrame(results)
+panel_a = panel_a[["Portfolios", "Weights", "Gross Return (H-L)", "Alpha (H-L)", "t(Alpha)"]]
+st.table(panel_a)
+
+# Panel B: Net Returns and Generalized Alphas
+st.subheader("Panel B: Net Returns and Generalized Alphas")
+panel_b = pd.DataFrame(results)
+panel_b = panel_b[["Portfolios", "Weights", "Gross Return (H-L)", "Net Alpha (H-L)", "t(Alpha)"]]
+st.table(panel_b)
+
+# Notes
+st.markdown("""
+**Notes:**
+1. Trading costs are applied as a 0.1% per trade assumption.
+2. Factor models include CMKT (Market), CSMB (Size), and CMOM (Momentum).
+3. Portfolio sorting and weighting schemes are dynamically adjusted for analysis.
+4. Net alpha is computed as gross alpha minus trading cost adjustment.
 """)
