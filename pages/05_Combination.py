@@ -47,12 +47,24 @@ st.write(r"""
 
 st.subheader("Panel A: Average Rank")
 
+st.image("images/average_rank.png", use_column_width=True)
+
 st.subheader("Panel B: Weighted-Average Rank")
+
+st.image("images/weighted_average_rank.png", use_column_width=True)
 
 st.subheader("Panel C: Fama-MacBeth")
 
+st.image("images/fama_macbeth.png", use_column_width=True)
+
 st.subheader("Panel D: Partial Least Squares")
+
+st.image("images/PLS.png", use_column_width=True)
 
 st.subheader("Panel E: IPCA")
 
+st.image("images/IPCA.png", use_column_width=True)
+
 st.subheader("Panel F: LASSO")
+
+st.image("images/LASSO.png", use_column_width=True)

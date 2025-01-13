@@ -22,7 +22,12 @@ of the test signal with the anomaly signals from the factor zoo.
 
 st.subheader("Panel A: Pearson Correlations")
 
+st.image("images/pearson_correlation.png", use_column_width=True)
+
+
 st.subheader("Panel B: Spearman Correlations")
+
+st.image("images/spearman_correlation.png", use_column_width=True)
 
 
 st.header("Agglomerative Hierarchical Cluster Plot")
@@ -30,6 +35,9 @@ st.header("Agglomerative Hierarchical Cluster Plot")
 st.write(r"""
 The figure shows an agglomerative hierarchical cluster plot using 
 Ward's minimum method and a maximum of 10 clusters.""")
+
+st.image("images/hierarchical_cluster.png", use_column_width=True)
+
 
 st.header("Distribution of t-stats on Conditioning Strategies")
 
@@ -81,9 +89,16 @@ st.write(r"""
 
 st.subheader("Panel A: T-stats from Fama-MacBeths")
 
+st.image("images/t_stats_famamacbeth.png", use_column_width=True)
+
 st.subheader("Panel B: T-stats from spanning tests")
 
+st.image("images/t_stats_spanningtests.png", use_column_width=True)
+
 st.subheader("Panel C: T-stats from conditional sorts")
+
+st.image("images/t_stats_conditional_sorts.png", use_column_width=True)
+
 
 st.write(r"""
 The tables below control for the six most-closely related anomalies.
@@ -115,4 +130,9 @@ and the Liu et al. (2021) three factors.
 
 st.header("Fama-MacBeths Controlling for Most Closely Related Anomalies")
 
+st.image("images/table_fama_macbeth.png", use_column_width=True)
+
+
 st.header("Spanning Tests Controlling for Most Closely Related Anomalies")
+
+st.image("images/table_spanning_tests.png", use_column_width=True)

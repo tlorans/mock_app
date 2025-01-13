@@ -23,10 +23,11 @@ Panel A plots results for gross Sharpe ratios. Panel B plots results for net Sha
          """)
 
 st.subheader("Panel A: Gross Sharpe Ratios")
+st.image("images/gross_sharpe_ratios.png", use_column_width=True)
 
 
 st.subheader("Panel B: Net Sharpe Ratios")
-
+st.image("images/net_sharpe_ratios.png", use_column_width=True)
 
 st.header("Dollar Invested")
 
@@ -39,9 +40,11 @@ st.write(r"""
          """)
 
 st.subheader("Panel A: Gross Returns")
+st.image("images/gross_returns.png", use_column_width=True)
 
 
 st.subheader("Panel B: Net Returns")
+st.image("images/net_returns.png", use_column_width=True)
 
 
 st.header("Anomaly Percentile Rank")
@@ -56,5 +59,9 @@ st.write(r"""
             """)
 
 st.subheader("Panel A: Gross Alpha Percentile Rank")
+st.image("images/gross_alpha_percentiles.png", use_column_width=True)
+
 
 st.subheader("Panel B: Net Alpha Percentile Rank")
+
+st.image("images/net_alpha_percentiles.png", use_column_width=True)
