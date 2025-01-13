@@ -67,12 +67,51 @@ st.write(r"""
          The strategies employed in the spanning tests are constructed using quintile sorts and value-weigthting.
          """)
 
+st.write(r"""
+         Panel C plots t-statistics on the average returns to strategies 
+         constructed by conditional double sorts.
+         In each month, we sort stocks into quintiles based on one 
+         of the anomaly signals at a time. Then, within each 
+         quintile, we sort stocks into quintiles based on the test signal.
+         Stocks are finally grouped into five test-signal portfolios by combining stocks 
+         within each anomaly sorting portfolio.
+         The panel plots the t-statistics on the average returns of these conditional 
+         double-sorted trading strategies of the test signal conditioneed on each of the anomalies.
+         """)
+
 st.subheader("Panel A: T-stats from Fama-MacBeths")
 
 st.subheader("Panel B: T-stats from spanning tests")
 
 st.subheader("Panel C: T-stats from conditional sorts")
 
+st.write(r"""
+The tables below control for the six most-closely related anomalies.
+To find the most closely related anomalies, we rank all anomalies based on:
+""")
+
+st.latex(r"""
+\begin{equation}
+\text{rank}(|\rho_{i,s}|) + \text{rank}(R^2_{r_t^i = \alpha + \beta r_t^s + \epsilon_t})
+\end{equation}
+""")
+
+st.write(r"""
+where $\rho_{i,s}$ is the panel correlation of the underlying signal for anomaly $i$ 
+and the test signal $s$ and $R^2_{r_t^i = \alpha + \beta r_t^s + \epsilon_t}$ is the $R^2$ 
+from the spanning test of regressing the returns to the testing 
+strategy exploiting anomaly $i$ on the test signal $s$.
+""")
+
+st.write(r"""
+The first stable reports Fama-MacBeth cross-sectional regression of returns 
+on the test signal controlling for the six most closely-related anomalies, 
+both individually and jointly.
+The second table reports spanning tests results from time-series regressions 
+of the returns to the test signal trading strategy onto the returns 
+of trading strategies exploiting the six most closely-related anomalies 
+and the Liu et al. (2021) three factors.
+""")
 
 st.header("Fama-MacBeths Controlling for Most Closely Related Anomalies")
 
